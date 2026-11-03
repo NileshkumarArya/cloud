@@ -1,0 +1,30 @@
+{
+  "simulation": {
+    "policy": "least-loaded",
+    "intervals": 20,
+    "base_rate": 40,
+    "burst_rate": 140,
+    "burst_start": 8,
+    "burst_end": 13,
+    "surge_threshold": 90,
+    "load_threshold": 80.0,
+    "max_load_threshold": 100.0,
+    "forecast_window": 5,
+    "forecast_strategy": "change_aware",
+    "admission_control": true,
+    "overload_threshold": 100.0,
+    "queue_limit": 50,
+    "request_timeout_ms": 2000.0,
+    "seed": 7
+  },
+  "policies": ["round-robin", "least-loaded", "fcfs", "adaptive"],
+  "paths": {
+    "database": "cwms_data/cwms.db",
+    "csv_output": "results/cwms_events.csv",
+    "experiment_data": "cwms_data"
+  },
+  "notes": [
+    "All node load, latency, and request values are synthetic.",
+    "This file documents defaults; source defaults live in SimulationConfig."
+  ]
+}

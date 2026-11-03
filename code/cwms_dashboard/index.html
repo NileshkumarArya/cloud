@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CWMS Dashboard - Cloud Workload Management System</title>
+    <link rel="stylesheet" href="/static/styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+</head>
+<body>
+    <header class="header">
+        <div class="header-content">
+            <h1>CWMS Dashboard</h1>
+            <p class="subtitle">Cloud Workload Management System</p>
+            <span class="badge simulated">SIMULATED METRICS</span>
+            <label class="token-control">
+                <span>API token</span>
+                <input type="password" id="api-token" autocomplete="off"
+                       placeholder="optional bearer token">
+            </label>
+        </div>
+    </header>
+
+    <nav class="tabs" role="tablist">
+        <button class="tab-btn active" role="tab" data-tab="overview">Overview</button>
+        <button class="tab-btn" role="tab" data-tab="nodes">Nodes</button>
+        <button class="tab-btn" role="tab" data-tab="metrics">Metrics</button>
+        <button class="tab-btn" role="tab" data-tab="forecast">Forecast</button>
+        <button class="tab-btn" role="tab" data-tab="scenarios">Scenarios</button>
+    </nav>
+
+    <main class="main-content">
+        <!-- Overview Tab -->
+        <section class="tab-panel active" id="overview" role="tabpanel">
+            <div class="grid grid-4">
+                <div class="card metric-card">
+                    <div class="metric-icon">📊</div>
+                    <div class="metric-info">
+                        <span class="metric-value" id="total-generated">0</span>
+                        <span class="metric-label">Requests Generated</span>
+                    </div>
+                </div>
+                <div class="card metric-card">
+                    <div class="metric-icon">✅</div>
+                    <div class="metric-info">
+                        <span class="metric-value" id="total-assigned">0</span>
+                        <span class="metric-label">Accepted (incl. queued)</span>
+                    </div>
+                </div>
+                <div class="card metric-card">
+                    <div class="metric-icon">❌</div>
+                    <div class="metric-info">
+                        <span class="metric-value" id="total-rejected">0</span>
+                        <span class="metric-label">Requests Rejected</span>
+                    </div>
+                </div>
+                <div class="card metric-card">
+                    <div class="metric-icon">⚡</div>
+                    <div class="metric-info">
+                        <span class="metric-value" id="surge-count">0</span>
+                        <span class="metric-label">Surge Events</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-2">
+                <div class="card chart-card">
+                    <h3>Request Rate Over Time</h3>
+                    <canvas id="requestRateChart"></canvas>
+                </div>
+                <div class="card chart-card">
+                    <h3>Node Load Distribution</h3>
+                    <canvas id="nodeLoadChart"></canvas>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>Current Status</h3>
+                <div id="status-panel" class="status-panel">
+                    <div class="status-item">
+                        <span class="status-label">Simulation:</span>
+                        <span class="status-value" id="sim-status">Not Started</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">Policy:</span>
+                        <span class="status-value" id="current-policy">-</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">Progress:</span>
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="progress-bar" style="width: 0%"></div>
+                        </div>
+                        <span class="status-value" id="progress-text">0 / 0 intervals</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">Forecast:</span>
+                        <span class="status-value" id="current-forecast">-</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">Recommendation:</span>
+                        <span class="status-value recommendation" id="current-recommendation">-</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Nodes Tab -->
+        <section class="tab-panel" id="nodes" role="tabpanel">
+            <div class="card">
+                <div class="card-header">
+                    <h3>Backend Nodes</h3>
+                    <select id="node-policy-select" class="select-input">
+                        <option value="least-loaded">Least Loaded</option>
+                        <option value="round-robin">Round Robin</option>
+                        <option value="adaptive">Adaptive (forecast-aware)</option>
+                        <option value="fcfs">FCFS (baseline)</option>
+                    </select>
+                </div>
+                <div class="table-container">
+                    <table id="nodes-table">
+                        <thead>
+                            <tr>
+                                <th>Node</th>
+                                <th>Status</th>
+                                <th>Capacity</th>
+                                <th>Current Load</th>
+                                <th>Accepted</th>
+                                <th>Queued / Overflow</th>
+                                <th>Available</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- Metrics Tab -->
+        <section class="tab-panel" id="metrics" role="tabpanel">
+            <div class="grid grid-2">
+                <div class="card chart-card">
+                    <h3>Assignment vs Rejection Rate</h3>
+                    <canvas id="assignmentChart"></canvas>
+                </div>
+                <div class="card chart-card">
+                    <h3>System Throughput</h3>
+                    <canvas id="throughputChart"></canvas>
+                </div>
+            </div>
+            <div class="grid grid-2">
+                <div class="card chart-card">
+                    <h3>Per-Node Assignment</h3>
+                    <canvas id="nodeAssignmentChart"></canvas>
+                </div>
+                <div class="card chart-card">
+                    <h3>Surge Detection Timeline</h3>
+                    <canvas id="surgeChart"></canvas>
+                </div>
+            </div>
+            <div class="card">
+                <h3>System Metrics Summary</h3>
+                <div id="metrics-summary" class="metrics-summary"></div>
+            </div>
+        </section>
+
+        <!-- Forecast Tab -->
+        <section class="tab-panel" id="forecast" role="tabpanel">
+            <div class="grid grid-2">
+                <div class="card chart-card">
+                    <h3>Workload Forecast vs Actual</h3>
+                    <canvas id="forecastChart"></canvas>
+                </div>
+                <div class="card chart-card">
+                    <h3>Forecast Accuracy</h3>
+                    <canvas id="accuracyChart"></canvas>
+                </div>
+            </div>
+            <div class="card">
+                <h3>Forecast Details</h3>
+                <div class="table-container">
+                    <table id="forecast-table">
+                        <thead>
+                            <tr>
+                                <th>Interval</th>
+                                <th>Predicted</th>
+                                <th>Actual</th>
+                                <th>Error</th>
+                                <th>Abs Error</th>
+                                <th>Method</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+                <div class="accuracy-metrics" id="accuracy-metrics"></div>
+            </div>
+        </section>
+
+        <!-- Scenarios Tab -->
+        <section class="tab-panel" id="scenarios" role="tabpanel">
+            <div class="card">
+                <h3>Run Predefined Scenarios</h3>
+                <div class="scenario-grid">
+                    <div class="scenario-card" data-scenario="normal">
+                        <h4>Normal Traffic</h4>
+                        <p>Steady request rate without bursts</p>
+                        <div class="scenario-params">Base: 40 req/interval</div>
+                        <button class="btn btn-primary run-scenario">Run Scenario</button>
+                    </div>
+                    <div class="scenario-card" data-scenario="burst">
+                        <h4>Traffic Burst</h4>
+                        <p>Sudden traffic increase (intervals 8-12)</p>
+                        <div class="scenario-params">Base: 40 → Burst: 180 req/interval</div>
+                        <button class="btn btn-primary run-scenario">Run Scenario</button>
+                    </div>
+                    <div class="scenario-card" data-scenario="failure">
+                        <h4>Node Failure</h4>
+                        <p>One backend node marked unhealthy</p>
+                        <div class="scenario-params">backend-b offline, Base: 50 req/interval</div>
+                        <button class="btn btn-primary run-scenario">Run Scenario</button>
+                    </div>
+                    <div class="scenario-card" data-scenario="overload">
+                        <h4>Overload and Queueing</h4>
+                        <p>Bounded queues with overflow rejection and timeouts</p>
+                        <div class="scenario-params">Base: 120 req/interval, queue: 10, timeout: 100 ms</div>
+                        <button class="btn btn-primary run-scenario">Run Scenario</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>Custom Simulation</h3>
+                <form id="custom-simulation-form" class="form-grid">
+                    <div class="form-group">
+                        <label for="custom-policy">Scheduling Policy</label>
+                        <select id="custom-policy" class="form-input">
+                            <option value="least-loaded">Least Loaded</option>
+                            <option value="round-robin">Round Robin</option>
+                            <option value="adaptive">Adaptive (forecast-aware)</option>
+                            <option value="fcfs">FCFS (baseline)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="custom-intervals">Intervals</label>
+                        <input type="number" id="custom-intervals" class="form-input" value="20" min="1" max="200">
+                    </div>
+                    <div class="form-group">
+                        <label for="custom-base-rate">Base Rate</label>
+                        <input type="number" id="custom-base-rate" class="form-input" value="40" min="1" max="1000">
+                    </div>
+                    <div class="form-group">
+                        <label for="custom-burst-rate">Burst Rate</label>
+                        <input type="number" id="custom-burst-rate" class="form-input" value="140" min="1" max="1000">
+                    </div>
+                    <div class="form-group">
+                        <label for="custom-burst-start">Burst Start</label>
+                        <input type="number" id="custom-burst-start" class="form-input" value="8" min="0">
+                    </div>
+                    <div class="form-group">
+                        <label for="custom-burst-end">Burst End</label>
+                        <input type="number" id="custom-burst-end" class="form-input" value="13" min="0">
+                    </div>
+                    <div class="form-group">
+                        <label for="custom-surge-threshold">Surge Threshold</label>
+                        <input type="number" id="custom-surge-threshold" class="form-input" value="90" min="1">
+                    </div>
+                    <div class="form-group">
+                        <label for="custom-load-threshold">Average Load Threshold (%)</label>
+                        <input type="number" id="custom-load-threshold" class="form-input" value="80" min="0" max="150" step="0.1">
+                    </div>
+                    <div class="form-group">
+                        <label for="custom-max-load-threshold">Max Node Load Threshold (%)</label>
+                        <input type="number" id="custom-max-load-threshold" class="form-input" value="100" min="0" max="300" step="0.1">
+                    </div>
+                    <div class="form-group">
+                        <label for="custom-fail-node">Fail Node</label>
+                        <select id="custom-fail-node" class="form-input">
+                            <option value="">None</option>
+                            <option value="backend-a">backend-a</option>
+                            <option value="backend-b">backend-b</option>
+                            <option value="backend-c">backend-c</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="custom-forecast-strategy">Forecast Strategy</label>
+                        <select id="custom-forecast-strategy" class="form-input">
+                            <option value="change_aware">Change-aware</option>
+                            <option value="moving_average">Moving average</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="custom-admission-control">Admission Control</label>
+                        <select id="custom-admission-control" class="form-input">
+                            <option value="true">Enabled (bounded queue)</option>
+                            <option value="false">Disabled (unbounded immediate)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="custom-overload-threshold">Queue Threshold (%)</label>
+                        <input type="number" id="custom-overload-threshold" class="form-input" value="100" min="0" max="150" step="0.1">
+                    </div>
+                    <div class="form-group">
+                        <label for="custom-queue-limit">Queue Limit / Node</label>
+                        <input type="number" id="custom-queue-limit" class="form-input" value="50" min="0" max="1000">
+                    </div>
+                    <div class="form-group">
+                        <label for="custom-timeout-ms">Request Timeout (ms)</label>
+                        <input type="number" id="custom-timeout-ms" class="form-input" value="2000" min="1" max="600000">
+                    </div>
+                    <div class="form-group">
+                        <label for="custom-seed">Random Seed</label>
+                        <input type="number" id="custom-seed" class="form-input" value="7" min="0">
+                    </div>
+                    <div class="form-group form-actions">
+                        <button type="submit" class="btn btn-primary">Run Custom Simulation</button>
+                    </div>
+                </form>
+            </div>
+
+            <div class="card">
+                <h3>Export Results</h3>
+                <div class="export-buttons">
+                    <button id="export-csv" class="btn btn-secondary" disabled>Export CSV</button>
+                    <button id="export-json" class="btn btn-secondary" disabled>Export JSON</button>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="footer">
+        <p>CWMS - Cloud Workload Management System | Educational Prototype | All metrics are simulated</p>
+    </footer>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loading-overlay">
+        <div class="loading-spinner"></div>
+        <p>Running simulation...</p>
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>
